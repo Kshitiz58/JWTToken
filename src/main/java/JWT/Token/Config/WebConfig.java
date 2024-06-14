@@ -3,7 +3,9 @@ package JWT.Token.Config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -15,8 +17,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 //import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import JWT.Token.Service.IUserDetailsService;
+import JWT.Token.Web.JWTAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -24,6 +28,9 @@ public class WebConfig {
 	
 	@Autowired
 	private IUserDetailsService userDetailsService;
+	
+	@Autowired
+	private JWTAuthenticationFilter jwtAuthFilter;
 	
 	@Bean
 	public PasswordEncoder passwordEncoder() {
@@ -36,11 +43,12 @@ public class WebConfig {
 				.csrf(AbstractHttpConfigurer:: disable)
 				.authorizeHttpRequests(app -> {
 					app.requestMatchers("/css/**","/error/**").permitAll();
-					app.requestMatchers("/home","/signup").permitAll();
+					app.requestMatchers("/home","/signup","/authenticate/**").permitAll();
 					app.requestMatchers("/admin/**").hasRole("ADMIN");
 					app.requestMatchers("/user/**").hasRole("USER");
 					app.anyRequest().authenticated();
 				})
+				.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
 				.formLogin(form -> {
 					form
 					.loginPage("/login")
@@ -72,5 +80,10 @@ public class WebConfig {
 		provider.setUserDetailsService(userDetailsService);
 		provider.setPasswordEncoder(passwordEncoder());
 		return provider;
+	}
+	
+	@Bean
+	public AuthenticationManager authenticationManager() {
+		return new ProviderManager(authenticationProvider());
 	}
 }
